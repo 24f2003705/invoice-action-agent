@@ -97,17 +97,30 @@ async def agent_card():
 
 async def validate_request(request: Request):
     authorization = request.headers.get("authorization", "")
-    if authorization != f"Bearer {API_TOKEN}":
+
+    # Require a well-formed Bearer token.
+    if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+    token = authorization[len("Bearer "):]
+
+    if not token or token.strip() != token or " " in token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # The token identifies the principal; different tokens are
+    # separate users for task isolation.
     if request.headers.get("a2a-version") != "1.0":
         raise HTTPException(status_code=400, detail="Invalid protocol version")
 
     if request.method == "POST":
         content_type = request.headers.get("content-type", "")
         if content_type.split(";")[0].strip() != "application/a2a+json":
-            raise HTTPException(status_code=415, detail="Unsupported media type")
+            raise HTTPException(
+                status_code=415,
+                detail="Unsupported media type"
+            )
 
+    return token
 
 def extract_message(body):
     message = body.get("message")
